@@ -33,13 +33,13 @@ export class ApiService {
   }
 
   getAllMetrics() {
-    const path = `https://api.nextbigsound.com/metrics?fields=items.*&access_token=${this.accessToken}`;
+    const path = `/metrics?fields=items.*&access_token=${this.accessToken}`;
     const url = this.host + path;
     return this.http.get(url);
   }
 
   getMetric(metricId) {
-    const path = `https://api.nextbigsound.com/metrics/${metricId}?&access_token=${this.accessToken}`;
+    const path = `/metrics/${metricId}?&access_token=${this.accessToken}`;
     const url = this.host + path;
     return this.http.get(url);
   }

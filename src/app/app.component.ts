@@ -16,55 +16,89 @@ export class AppComponent implements OnInit {
   timeseries: any;
   allMetrics: any;
   twitterMetric: any;
+  kanyeMentions = [];
 
   constructor(private apiService: ApiService) {}
 
   ngOnInit() {
-    // TEST ALL APIS
-    // GET ARTIST
-    this.apiService.getArtists('Kanye West', 10)
-      .subscribe(
-        data => { this.kanye = data['artists'][0]; console.log(this.kanye); },
-        err => console.log(err),
-      // GET ARTIST EVENTS
-        () => {
-          this.getArtistEvents(this.kanye.id, 17167, 17531);
-          // GET ARTISTS TIMESERIES
-          this.getArtistTimeSeries(this.kanye.id, [28, 247], '2017-01-01', '2017-12-31');
-          console.log('done loading artist data');
-        }
-      );
-
-      this.createChart();
+    this.getKanyeMentions(this.createChart, this);
   }
 
-  createChart() {
-    const w = 400, h = 250;
-    const padding = 4;
-    const data = [50, 100, 150, 200, 250, 130, 210, 30, 170];
+  createChart(context) {
 
-    const svg = d3.select('body')
-                .append('svg')
-                .attr('width', w)
-                .attr('height', h);
+    //Set the dimensions of the canvas / graph
+    var margin = {top: 30, right: 20, bottom: 30, left: 50},
+        width = 1200 - margin.left - margin.right,
+        height = 800 - margin.top - margin.bottom;
 
-    svg.selectAll('rect')
-      .data(data)
-      .enter()
-        .append('rect')
-        .attr('x', (d, i) => i * (w / data.length))
-        .attr('y', d => h - d)
-        .attr('width', w / data.length - padding)
-        .attr('height', d => d)
-        .attr('fill', 'green');
+    // Parse the date / time
+    //var parseDate = d3.timeFormat("%d-%b-%y").parse;
 
-        svg.selectAll('text')
-           .data(data)
-           .enter()
-              .append('text')
-              .text(d => d)
-              .attr('x', (d, i) => i * (w / data.length) + (w / data.length - padding) / 2)
-              .attr('y', (d) => h - d + 20);
+    // // // Set the ranges
+    var x = d3.scaleTime().range([0, width]);
+    var y = d3.scaleLinear().range([height, 0]);
+
+    // Define the axes
+    var xAxis = d3.axisBottom(x)
+      .ticks(5);
+
+    var yAxis = d3.axisLeft(y)
+      .ticks(15);
+
+    // Define the line
+    var valueline = d3.line()
+        .curve(d3.curveMonotoneX)
+        .x(function(d) {
+          return x(d.date);
+         })
+        .y(function(d) {
+          return y(d.mentions);
+        });
+
+    // // Adds the svg canvas
+    var svg = d3.select("body")
+      .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+        .attr("transform",
+              "translate(" + margin.left + "," + margin.top + ")");
+
+
+    context.kanyeMentions.forEach(function(d) {
+      //var parsetime = d3.timeParse("%d-%b-%y");
+      d.date = new Date(d.date);
+      d.mentions = +d.mentions;
+    });
+
+    // Scale the range of the data
+    x.domain(d3.extent(context.kanyeMentions, function(d) { return d.date; }));
+    y.domain([0, d3.max(context.kanyeMentions, function(d) { return d.mentions; })]);
+
+    // Add the valueline path.
+    svg.append("path")
+        //.attr("class", "line")
+        .attr("d", valueline(context.kanyeMentions))
+        .attr("stroke", "blue")
+        .attr("stroke-width", 2)
+        .attr("fill", "none");
+
+    // Add the X Axis
+    svg.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis);
+
+    // Add the Y Axis
+    svg.append("g")
+        .attr("class", "y axis")
+        .call(yAxis);
+
+    // TEST
+    // d3.select('p')
+    // .style('background-color', 'red')
+    // .style('height', '500px')
+    // .style('width', '500px');
   }
 
   getArtistEvents(artistId, startDays, endDays) {
@@ -85,12 +119,19 @@ export class AppComponent implements OnInit {
       );
   }
 
-  getAllMetrics() {
+  getMetricIdByName(name) {
     this.apiService.getAllMetrics()
       .subscribe(
         data => { this.allMetrics = data; console.log(this.allMetrics); },
         err => console.log(err),
-        () => console.log('done loading all metrics data')
+        () => {
+          this.allMetrics.forEach((m) => {
+            if (m) {
+              console.log('hiI');
+            }
+          });
+          console.log('done loading all metrics data');
+        }
       );
   }
 
@@ -102,4 +143,25 @@ export class AppComponent implements OnInit {
         () => console.log('done loading twitter metric data')
       );
   }
+
+  getKanyeMentions(callback, context) {
+    this.apiService.getTimeSeries(356, [247], '2017-01-01', '2017-12-31')
+      .subscribe(
+        data => {
+          const temp = data['data'][0].timeseries.deltas;
+          for (const property in temp) {
+            if (temp.hasOwnProperty(property)) {
+                this.kanyeMentions.push({ date: property, mentions: temp[property] })
+            }
+          }
+          console.log(this.kanyeMentions);
+        },
+        err => console.log(err),
+        () => {
+         console.log('done loading timeseries data');
+          callback(context);
+        }
+      );
+  }
+
 }
